@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salzburg ComfortMap</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.maptiler.com/maptiler-sdk-js/v3.9.0/maptiler-sdk.umd.min.js"></script>
+    <link href="https://cdn.maptiler.com/maptiler-sdk-js/v3.9.0/maptiler-sdk.css" rel="stylesheet" />
+    <script src="https://cdn.maptiler.com/leaflet-maptilersdk/v4.1.0/leaflet-maptilersdk.umd.min.js"></script>
+    <style>
+        :root{
+            --primary: #28948c; /* teal */
+            --light: #f6f1ea;   /* light background */
+            --lime: #acd777;    /* chart/accent green */
+            --accent: #eb748c;  /* pink accent */
+            --text: #2d3748;
+            --muted-border: #e2e8f0;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--primary); /* overall page background set to requested color */
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            /* Background image for the title. place `background.jpg` next to this HTML file */
+            background-image: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.15)), url('amna.png');
+            background-size: cover;
+            background-position: center bottom;
+            padding: 25px 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.45);
+        }
+
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1rem;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.3);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .map-container {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .panel {
+            background: var(--light);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--muted-border);
+        }
+
+        .panel h2 {
+            color: var(--text);
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .panel h3 {
+            color: #2d3748;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(40,148,140,0.12);
+        }
+
+        .stat-card.alt {
+            background: linear-gradient(135deg, var(--accent) 0%, #ff9aa8 100%);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .chart-container {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .chart-bar-fill {
+            height: 100%;
+            /* background drawn via inline background-size so percentage can be accurate
+               while the element keeps a min-width to host the white label */
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary) 100%);
+            background-repeat: no-repeat;
+            transition: background-size 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* align value to the left inside the filled area */
+            padding-left: 8px; /* left padding so the white number isn't flush to the edge */
+            min-width: 40px; /* ensure room for the white number */
+            box-sizing: border-box;
+            color: white;
+        }
+           {background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-bar-fill {
+            height: 100%;
+            /* background drawn via inline background-size so percentage can be accurate
+               while the element keeps a min-width to host the white label */
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary) 100%);
+            background-repeat: no-repeat;
+            transition: background-size 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* align value to the left inside the filled area */
+            padding-left: 2px; /* left padding so the white number isn't flush to the edge */
+            min-width: 40px; /* ensure room for the white number */
+            box-sizing: border-box;
+            color: white;
+        }
+
+        .chart-value {
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .filter-section {
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            margin-bottom: 15px;
+        }
+
+        .filter-group label {
+            display: block;
+            color: #4a5568;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .filter-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .filter-group select:hover {
+            border-color: var(--primary);
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(40,148,140,0.08);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--muted-border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .legend {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2d3748;
+            font-size: 0.95rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .legend-label {
+            font-size: 0.85rem;
+            color: #4a5568;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .info-badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .sidebar {
+                order: 2;
+            }
+
+            .map-container {
+                order: 1;
+                height: 500px;
+            }
+        }
+
+        /* Custom Leaflet popup styling */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .leaflet-popup-content {
+            margin: 18px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 12px 15px;
+            margin: -18px -18px 15px -18px;
+            border-radius: 12px 12px 0 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .popup-section {
+            margin-bottom: 12px;
+        }
+
+        .popup-row {
+            display: flex;
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .popup-row:last-child {
+            border-bottom: none;
+        }
+
+        .popup-label {
+            font-weight: 600;
+            color: #4a5568;
+            min-width: 90px;
+            font-size: 0.85rem;
+        }
+
+        .popup-value {
+            color: #2d3748;
+            font-size: 0.85rem;
+        }
+
+        .popup-footer {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 2px solid #f0f0f0;
+            font-size: 0.75rem;
+            color: #718096;
+        }
+
+        /* Map legend control */
+        .leaflet-legend-control {
+            background: rgba(255,255,255,0.95);
+            padding: 8px 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            font-size: 0.9rem;
+            color: #2d3748;
+            max-width: 220px;
+        }
+
+        .leaflet-legend-control .legend-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .leaflet-legend-control button.legend-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .leaflet-legend-control .legend-content {
+            margin-top: 8px;
+            display: none;
+            max-height: 220px;
+            overflow: auto;
+        }
+
+        .leaflet-legend-control .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+        }
+
+        .leaflet-legend-control .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex: 0 0 18px;
+        }
+
+        /* Sidebar tabs (top buttons that switch pages) */
+        .sidebar-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            cursor: pointer;
+            font-weight: 700;
+            color: #4a5568;
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: transparent;
+        }
+
+        .tab-content .tab-pane {
+            display: none;
+            overflow: auto;
+            max-height: calc(100vh - 260px);
+        }
+
+        .tab-content .tab-pane.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Salzburg ComfortMap: People's Perceptions of Outdoor Conditions</h1>
+            <h2 class="subtitle">Interactive visualization of public space comfort data collected via Kobo Toolbox</h2>
+            <p>Amna Azeem, Annabelle Kiefer, Sanjida Suchi</p>
+        </header>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="sidebar-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="stats">Statistics</button>
+                        <button class="tab-btn" data-tab="filters">Filters</button>
+                    </div>
+
+                    <div class="tab-content">
+                        <div id="tab-stats" class="tab-pane active panel">
+                            <h2>Statistics <span class="info-badge" id="activeCount">0 shown</span></h2>
+                            
+                            <div class="stat-grid">
+                                <div class="stat-card">
+                                    <div class="stat-label">Total Surveys</div>
+                                    <div class="stat-value" id="totalResponses">0</div>
+                                </div>
+                                <div class="stat-card alt">
+                                    <div class="stat-label">Filtered</div>
+                                    <div class="stat-value" id="filteredCount">0</div>
+                                </div>
+                            </div>
+
+                            <h3>Comfort Distribution</h3>
+                            <div class="chart-container" id="comfortChart"></div>
+
+                            <h3>Temperature Perception</h3>
+                            <div class="chart-container" id="temperatureChart"></div>
+
+                            <h3>Shade Availability</h3>
+                            <div class="chart-container" id="shadeChart"></div>
+                        </div>
+
+                        <div id="tab-filters" class="tab-pane panel">
+                            <h2>Filters</h2>
+                            
+                            <div class="filter-section">
+                                <div class="filter-group">
+                                    <label>Comfort Level</label>
+                                    <select id="filterComfort">
+                                        <option value="all">All levels</option>
+                                        <option value="very_comfortable">Very comfortable</option>
+                                        <option value="comfortable">Comfortable</option>
+                                        <option value="neutral">Neutral</option>
+                                        <option value="uncomfortable">Uncomfortable</option>
+                                        <option value="very_uncomfortable">Very uncomfortable</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-group">
+                                    <label>Shade Availability</label>
+                                    <select id="filterShade">
+                                        <option value="all">All shade levels</option>
+                                        <option value="none">No shade</option>
+                                        <option value="partial">Partial shade</option>
+                                        <option value="mostly">Mostly shaded</option>
+                                        <option value="fully">Fully shaded</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-group">
+                                    <label>Temperature</label>
+                                    <select id="filterTemperature">
+                                        <option value="all">All temperatures</option>
+                                        <option value="very_cool">Very Cool</option>
+                                        <option value="cool">Cool</option>
+                                        <option value="neutral">Neutral</option>
+                                        <option value="warm">Warm</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-group">
+                                    <label>Time of Visit</label>
+                                    <select id="filterTime">
+                                        <option value="all">All times</option>
+                                        <option value="morning">Morning</option>
+                                        <option value="midday">Midday</option>
+                                        <option value="afternoon">Afternoon</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-group">
+                                    <label>Weather Conditions</label>
+                                    <select id="filterWeather">
+                                        <option value="all">All conditions</option>
+                                        <option value="sunny">Sunny</option>
+                                        <option value="cloudy">Cloudy</option>
+                                        <option value="rainy">Rainy</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-buttons">
+                                    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                                    <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="loading" id="loading">Loading map...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MAPTILER_KEY = 'utLncnHQ5R3wrpjPWg03';
+        
+        // Initialize the map centered on Salzburg
+        // Restrict view to Europe and limit zoom levels to avoid showing the whole world
+        const europeBounds = [[34.0, -25.0], [72.0, 45.0]]; // [southWest, northEast]
+        const map = L.map('map', {
+            minZoom: 5,
+            maxZoom: 18,
+            maxBounds: europeBounds,
+            maxBoundsViscosity: 0.7
+        }).setView([47.8095, 13.0550], 13);
+
+        // Track first display call so we don't auto-fit bounds on initial load (keeps Salzburg view)
+        let initialLoad = true;
+
+        // Add MapTiler layer with your custom style
+        const mtLayer = L.maptiler.maptilerLayer({
+            apiKey: MAPTILER_KEY,
+            style: '019af95c-3187-7e97-9dad-81938b05df63'
+        }).addTo(map);
+
+        // Create a collapsible legend control in the bottom-left of the map
+        (function addLegendControl() {
+            const legendHtml = `
+                <div class="legend-item"><div class="legend-color" style="background:#10b981"></div><div class="legend-label">Very Comfortable</div></div>
+                <div class="legend-item"><div class="legend-color" style="background:#fbbf24"></div><div class="legend-label">Comfortable</div></div>
+                <div class="legend-item"><div class="legend-color" style="background:#f59e0b"></div><div class="legend-label">Neutral</div></div>
+                <div class="legend-item"><div class="legend-color" style="background:#ef4444"></div><div class="legend-label">Uncomfortable</div></div>
+                <div class="legend-item"><div class="legend-color" style="background:#dc2626"></div><div class="legend-label">Very Uncomfortable</div></div>
+            `;
+
+            const LegendControl = L.Control.extend({
+                options: { position: 'bottomleft' },
+                onAdd: function (map) {
+                    const container = L.DomUtil.create('div', 'leaflet-legend-control');
+                    container.innerHTML = `
+                        <div class="legend-toggle">
+                            <div class="legend-title">Comfort Level</div>
+                            <button class="legend-btn" id="legendToggleBtn">Open</button>
+                        </div>
+                        <div class="legend-content" id="legendContent">${legendHtml}</div>
+                    `;
+
+                    L.DomEvent.disableClickPropagation(container);
+                    L.DomEvent.disableScrollPropagation(container);
+
+                    return container;
+                }
+            });
+
+            const legendControl = new LegendControl();
+            legendControl.addTo(map);
+
+            // Toggle behaviour
+            setTimeout(() => {
+                const btn = document.getElementById('legendToggleBtn');
+                const content = document.getElementById('legendContent');
+                if (!btn || !content) return;
+
+                btn.addEventListener('click', () => {
+                    const isOpen = content.style.display === 'block';
+                    content.style.display = isOpen ? 'none' : 'block';
+                    btn.textContent = isOpen ? 'Open' : 'Close';
+                });
+            }, 50);
+        })();
+
+        // Toggle marker visibility depending on current zoom
+        function updateMarkerVisibility() {
+            const z = map.getZoom();
+
+            // Add or remove markers based on zoom threshold
+            markers.forEach(m => {
+                if (z >= POINT_MIN_ZOOM) {
+                    if (!map.hasLayer(m)) m.addTo(map);
+                } else {
+                    if (map.hasLayer(m)) m.remove();
+                }
+            });
+
+            // Count markers that are actually inside the current map bounds
+            let visible = 0;
+            if (z >= POINT_MIN_ZOOM && markers.length > 0) {
+                const bounds = map.getBounds();
+                visible = markers.filter(m => map.hasLayer(m) && bounds.contains(m.getLatLng())).length;
+            }
+
+            document.getElementById('activeCount').textContent = `${visible} shown`;
+        }
+
+        // Run on zoom and on map move end so counts reflect the current extent
+        map.on('zoomend', updateMarkerVisibility);
+        map.on('moveend', updateMarkerVisibility);
+
+        // Map comfort levels to colors (using actual field values from API)
+        const comfortColorMap = {
+            'very_comfortable': '#10b981',
+            'comfortable': '#fbbf24',
+            'neutral': '#f59e0b',
+            'uncomfortable': '#ef4444',
+            'very_uncomfortable': '#dc2626'
+        };
+
+        // Map for display labels
+        const comfortLabels = {
+            'very_comfortable': 'Very Comfortable',
+            'comfortable': 'Comfortable',
+            'neutral': 'Neutral',
+            'uncomfortable': 'Uncomfortable',
+            'very_uncomfortable': 'Very Uncomfortable'
+        };
+
+        const shadeLabels = {
+            'none': 'No shade',
+            'partial': 'Partial shade',
+            'mostly': 'Mostly shaded',
+            'fully': 'Full shade'
+        };
+
+        const tempLabels = {
+            'cold': 'Cold',
+            'very_cool': 'Very Cool',
+            'cool': 'Cool',
+            'neutral': 'Neutral',
+            'warm': 'Warm',
+            'very_hot': 'Very Hot',
+            'hot': 'Hot'
+        };
+
+        // Store all data and markers
+        let allResults = [];
+        let markers = [];
+
+        // Only show point markers when zoom is at least this level (city-level)
+        const POINT_MIN_ZOOM = 12;
+
+        // Initial Salzburg view and allowed Salzburg bounds to prevent zooming out to Europe
+        const INITIAL_VIEW = { center: [47.8095, 13.0550], zoom: 13 };
+        const SALZBURG_BOUNDS = L.latLngBounds([47.70, 12.98], [47.86, 13.14]);
+
+        // Function to parse location string "lat lng altitude accuracy"
+        // Accepts missing/invalid values and falls back to 0,0
+        function parseLocation(locationString) {
+            if (!locationString || typeof locationString !== 'string') {
+                return { lat: 0, lng: 0, altitude: 0, accuracy: 0 };
+            }
+
+            const parts = locationString.split(' ').filter(p => p !== '');
+
+            const lat = parseFloat(parts[0]);
+            const lng = parseFloat(parts[1]);
+
+            return {
+                lat: Number.isFinite(lat) ? lat : 0,
+                lng: Number.isFinite(lng) ? lng : 0,
+                altitude: parts[2] ? (parseFloat(parts[2]) || 0) : 0,
+                accuracy: parts[3] ? (parseFloat(parts[3]) || 0) : 0
+            };
+        }
+
+        // Resolve a canonical comfort key for coloring: try several possible fields
+        function getComfortKey(result) {
+            // 1) If there's an explicit overall_comfort string that matches our keys, use it
+            if (result.overall_comfort && comfortColorMap[result.overall_comfort]) return result.overall_comfort;
+
+            // 2) If there's a numeric `comfort` (1-5), map to keys
+            if (result.comfort !== undefined && result.comfort !== null) {
+                const v = String(result.comfort).trim();
+                // Many Kobo forms use 1..5 where the direction can vary; based on your dataset
+                // higher = more comfortable (5 = very comfortable). Map accordingly.
+                const map = {
+                    '5': 'very_comfortable',
+                    '4': 'comfortable',
+                    '3': 'neutral',
+                    '2': 'uncomfortable',
+                    '1': 'very_uncomfortable'
+                };
+                if (map[v]) return map[v];
+            }
+
+            // 3) Fallback: if thermal_comfort is explicitly 'neutral', use neutral (keeps existing behavior)
+            if (result.thermal_comfort === 'neutral') return 'neutral';
+
+            // 4) If a field exactly matches one of our keys, use it
+            if (result.thermal_comfort && comfortColorMap[result.thermal_comfort]) return result.thermal_comfort;
+            if (result.overall_comfort && comfortColorMap[result.overall_comfort]) return result.overall_comfort;
+
+            // Otherwise unknown
+            return null;
+        }
+
+        // Normalize common field values coming from Kobo JSON
+        function normalizeShade(val) {
+            if (!val && val !== 0) return val;
+            const s = String(val).toLowerCase().trim();
+            if (s === 'full') return 'fully';
+            return s;
+        }
+
+        function normalizeTime(val) {
+            if (!val && val !== 0) return val;
+            return String(val).toLowerCase().trim();
+        }
+
+        function normalizeWeather(val) {
+            if (!val && val !== 0) return '';
+            return String(val).toLowerCase().trim();
+        }
+
+        // Function to create a marker for a data point
+        function createMarker(result) {
+            const location = parseLocation(result.location);
+            const comfortKey = getComfortKey(result);
+            
+            const marker = L.circleMarker([location.lat, location.lng], {
+                radius: 10,
+                fillColor: comfortKey ? comfortColorMap[comfortKey] : '#6b7280',
+                color: '#fff',
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.85
+            });
+
+            // Create detailed popup
+            const popupContent = `
+                <div class="popup-header">
+                    ${comfortLabels[comfortKey] || comfortKey || result.thermal_comfort || 'Unknown'}
+                </div>
+                <div class="popup-section">
+                    <div class="popup-row">
+                        <span class="popup-label">🌡️ Temperature:</span>
+                        <span class="popup-value">${tempLabels[result.thermal_comfort] || result.thermal_comfort}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">🌳 Shade:</span>
+                        <span class="popup-value">${shadeLabels[result.shade] || result.shade}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">💨 Airflow:</span>
+                        <span class="popup-value">${result.wind || 'N/A'}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">🌲 Trees:</span>
+                        <span class="popup-value">${result.trees || 'N/A'}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">🏗️ Surface:</span>
+                        <span class="popup-value">${result.surface || 'N/A'}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">🔊 Noise:</span>
+                        <span class="popup-value">${result.noise || 'N/A'}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">🕐 Time:</span>
+                        <span class="popup-value">${result.time_of_visit || 'N/A'}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">☀️ Weather:</span>
+                        <span class="popup-value">${result.weather || 'N/A'}</span>
+                    </div>
+                </div>
+                <div class="popup-footer">
+                    Submitted: ${result._submission_time ? new Date(result._submission_time).toLocaleString() : 'N/A'}
+                </div>
+            `;
+
+            marker.bindPopup(popupContent, {
+                maxWidth: 350,
+                className: 'custom-popup'
+            });
+
+            // Store result reference on marker for filtering
+            marker.result = result;
+
+            return marker;
+        }
+
+        // Function to display markers based on filters
+        function displayMarkers(results) {
+            // Remove existing markers
+            markers.forEach(m => m.remove());
+            markers = [];
+
+
+            // Skip plotting responses that were flagged as missing location
+            const toPlot = results.filter(r => !r._missing_location);
+            const skipped = results.length - toPlot.length;
+
+            // Clear markers array and create markers for valid locations
+            markers = [];
+            toPlot.forEach(result => {
+                const marker = createMarker(result);
+                // only add to map if current zoom is high enough
+                if (map.getZoom() >= POINT_MIN_ZOOM) marker.addTo(map);
+                markers.push(marker);
+            });
+
+            // Update filtered count; activeCount is computed by updateMarkerVisibility()
+            document.getElementById('filteredCount').textContent = results.length;
+
+            // Recompute visibility/counts based on current map state
+            updateMarkerVisibility();
+
+            if (skipped > 0) console.warn(`Skipped ${skipped} responses without locations (not plotted).`);
+
+            // Fit map bounds if there are plotted markers and this is not the initial load
+            if (markers.length > 0 && !initialLoad) {
+                const bounds = L.latLngBounds(
+                    markers.map(m => m.getLatLng())
+                );
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            }
+
+            // After the first displayMarkers call, mark initialLoad false so subsequent updates fit bounds
+            if (initialLoad) initialLoad = false;
+        }
+
+        // Function to apply filters
+        function applyFilters() {
+            const comfort = document.getElementById('filterComfort').value;
+            const shade = document.getElementById('filterShade').value;
+            const temperature = document.getElementById('filterTemperature').value;
+            const time = document.getElementById('filterTime').value;
+            const weather = document.getElementById('filterWeather').value;
+
+            const filtered = allResults.filter(result => {
+                const cKey = getComfortKey(result);
+                if (comfort !== 'all' && cKey !== comfort) return false;
+
+                // Shade: normalize 'full' -> 'fully' and compare
+                const resShade = normalizeShade(result.shade);
+                if (shade !== 'all' && resShade !== shade) return false;
+
+                // Temperature (thermal_comfort) compare directly (normalized keys exist in tempLabels)
+                const resTemp = result.thermal_comfort ? String(result.thermal_comfort).toLowerCase().trim() : '';
+                if (temperature !== 'all' && resTemp !== temperature) return false;
+
+                // Visit time: support both 'visit_time' and 'time_of_visit'
+                const resTime = (result.visit_time || result.time_of_visit) ? normalizeTime(result.visit_time || result.time_of_visit) : '';
+                if (time !== 'all' && resTime !== time) return false;
+
+                // Weather: allow multi-value fields (e.g., "sunny cloudy")
+                const resWeather = normalizeWeather(result.weather);
+                if (weather !== 'all') {
+                    const tokens = resWeather.split(/\s+/).filter(Boolean);
+                    if (!tokens.includes(weather)) return false;
+                }
+
+                return true;
+            });
+
+            displayMarkers(filtered);
+
+            // After markers are displayed, prefer to zoom to the filtered points that lie inside Salzburg.
+            // If none of the filtered points are inside Salzburg, fall back to the initial Salzburg view.
+            const salzMarkers = markers.filter(m => {
+                try {
+                    const ll = m.getLatLng();
+                    return SALZBURG_BOUNDS.contains(ll);
+                } catch (e) { return false; }
+            });
+
+            if (salzMarkers.length === 1) {
+                map.setView(salzMarkers[0].getLatLng(), 15);
+            } else if (salzMarkers.length > 1) {
+                const bounds = L.latLngBounds(salzMarkers.map(m => m.getLatLng()));
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            } else {
+                // No filtered points inside Salzburg — always show Salzburg instead of outliers
+                map.setView(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
+            }
+
+            updateMarkerVisibility();
+        }
+
+        // Function to reset filters
+        function resetFilters() {
+            document.getElementById('filterComfort').value = 'all';
+            document.getElementById('filterShade').value = 'all';
+            document.getElementById('filterTemperature').value = 'all';
+            document.getElementById('filterTime').value = 'all';
+            document.getElementById('filterWeather').value = 'all';
+            
+            displayMarkers(allResults);
+            // Recenter to Salzburg and update counts when resetting filters
+            map.setView([47.8095, 13.0550], 13);
+            updateMarkerVisibility();
+        }
+
+        // Function to create a chart
+        function createChart(containerId, data) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            const total = Object.values(data).reduce((sum, val) => sum + val, 0);
+            const maxValue = Math.max(...Object.values(data));
+
+            Object.entries(data).sort((a, b) => b[1] - a[1]).forEach(([label, value]) => {
+                    const percentage = total > 0 ? (value / maxValue) * 100 : 0;
+
+                    const barDiv = document.createElement('div');
+                    barDiv.className = 'chart-bar';
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'chart-label';
+                    labelDiv.textContent = label;
+
+                    const barBg = document.createElement('div');
+                    barBg.className = 'chart-bar-bg';
+
+                    const barFill = document.createElement('div');
+                    barFill.className = 'chart-bar-fill';
+                    // Use background-size to visually show the percentage while the element keeps a min-width
+                    barFill.style.backgroundSize = `${percentage}% 100%`;
+
+                    const spanVal = document.createElement('span');
+                    spanVal.className = 'chart-value';
+                    spanVal.style.marginLeft = '2px';
+                    spanVal.textContent = value;
+                    barFill.appendChild(spanVal);
+
+                    barBg.appendChild(barFill);
+
+                    barDiv.appendChild(labelDiv);
+                    barDiv.appendChild(barBg);
+                    container.appendChild(barDiv);
+            });
+        }
+
+        // Function to update dashboard
+        function updateDashboard(results) {
+            document.getElementById('totalResponses').textContent = results.length;
+            document.getElementById('filteredCount').textContent = results.length;
+
+            // Comfort distribution
+            const comfortCounts = {};
+            results.forEach(result => {
+                const key = getComfortKey(result) || 'unknown';
+                const label = comfortLabels[key] || (key === 'unknown' ? 'Unknown' : key);
+                comfortCounts[label] = (comfortCounts[label] || 0) + 1;
+            });
+            createChart('comfortChart', comfortCounts);
+
+            // Temperature distribution
+            const tempCounts = {};
+            results.forEach(result => {
+                const temp = result.thermal_comfort ? String(result.thermal_comfort).toLowerCase().trim() : '';
+                const label = tempLabels[temp] || (temp || 'Unknown');
+                tempCounts[label] = (tempCounts[label] || 0) + 1;
+            });
+            createChart('temperatureChart', tempCounts);
+
+            // Shade distribution (normalize common variants like 'full' -> 'fully')
+            const shadeCounts = {};
+            results.forEach(result => {
+                const raw = result.shade;
+                const shade = normalizeShade(raw);
+                const label = shadeLabels[shade] || (shade || 'Unknown');
+                shadeCounts[label] = (shadeCounts[label] || 0) + 1;
+            });
+            createChart('shadeChart', shadeCounts);
+        }
+
+        // Fetch data from backend (keeping your working fetch logic)
+        async function fetchKoboData() {
+            try {
+                document.getElementById('loading').textContent = 'Loading survey data...';
+                
+                const response = await fetch('http://localhost:8000/kobo-data');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+
+                console.log("Data loaded:", data);
+
+                // Check if we have results
+                if (data.results && data.results.length > 0) {
+                    // Normalize results: if `location` is missing/null, set to "0 0 0 0" so points are plotted at 0,0
+                    allResults = data.results.map(r => {
+                        if (!r.location || r.location === 'null' || r.location === 'None') {
+                            r.location = '0 0 0 0';
+                            r._missing_location = true; // optional flag for styling or later filtering
+                        }
+                        return r;
+                    });
+
+                    // Display all markers initially
+                    displayMarkers(allResults);
+
+                    // Update dashboard
+                    updateDashboard(allResults);
+                } else {
+                    console.log('No data points found');
+                    document.getElementById('loading').textContent = 'No data available';
+                    document.getElementById('loading').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Error fetching Kobo data:', error);
+                document.getElementById('loading').textContent = 'Error loading data. Check console.';
+                document.getElementById('loading').style.backgroundColor = '#fee';
+                document.getElementById('loading').style.color = '#c00';
+            }
+        }
+
+        // Load data when page loads
+        fetchKoboData();
+
+        // Initialize sidebar tab switching (Statistics / Filters)
+        function initSidebarTabs() {
+            const buttons = document.querySelectorAll('.tab-btn');
+            const panes = document.querySelectorAll('.tab-pane');
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.dataset.tab;
+
+                    buttons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    panes.forEach(p => p.classList.remove('active'));
+                    const activePane = document.getElementById('tab-' + tab);
+                    if (activePane) activePane.classList.add('active');
+                });
+            });
+        }
+
+        // Call after script loads
+        initSidebarTabs();
+    </script>
+</body>
+</html>
