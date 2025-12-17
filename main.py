@@ -1,28 +1,13 @@
 from fastapi import FastAPI
-from app.kobo import fetch_kobo_data
-
-app = FastAPI()
-
-@app.get("/kobo-data")
-async def get_kobo_data():
-    data = await fetch_kobo_data()
-    return data
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.kobo import fetch_kobo_data
 
 app = FastAPI()
-
-# Allow requests from your frontend origin (adjust as needed)
-origins = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-    # add other origins if needed
-]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # or ["*"] to allow all origins (less secure)
+    allow_origins=["*"],  # adjust for your frontend URLs if needed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,5 +15,7 @@ app.add_middleware(
 
 @app.get("/kobo-data")
 async def get_kobo_data():
-    data = await fetch_kobo_data()
-    return data
+    return await fetch_kobo_data()
+
+# Serve your frontend files from / (root URL)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
