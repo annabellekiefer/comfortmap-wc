@@ -1070,7 +1070,7 @@
             try {
                 document.getElementById('loading').textContent = 'Loading survey data...';
                 
-                const response = await fetch('http://localhost:8000/kobo-data');
+                const response = await fetch('/kobo-data');
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
